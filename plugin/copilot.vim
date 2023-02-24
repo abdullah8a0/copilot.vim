@@ -20,13 +20,15 @@ function! s:ColorScheme() abort
   hi def link CopilotAnnotation Normal
 endfunction
 
+
 function! s:MapTab() abort
   if get(g:, 'copilot_no_tab_map') || get(g:, 'copilot_no_maps')
     return
   endif
   let tab_map = maparg('<Tab>', 'i', 0, 1)
   if !has_key(tab_map, 'rhs')
-    imap <script><silent><nowait><expr> <Tab> copilot#Accept()
+    imap <script><silent><nowait><expr> <Tab> copilot#AcceptOne()
+    imap <script><silent><nowait><expr> <S-Tab> copilot#AcceptAll()
   elseif tab_map.rhs !~# 'copilot'
     if tab_map.expr
       let tab_fallback = '{ -> ' . tab_map.rhs . ' }'
@@ -35,9 +37,11 @@ function! s:MapTab() abort
     endif
     let tab_fallback = substitute(tab_fallback, '<SID>', '<SNR>' . get(tab_map, 'sid') . '_', 'g')
     if get(tab_map, 'noremap') || get(tab_map, 'script') || mapcheck('<Left>', 'i') || mapcheck('<Del>', 'i')
-      exe 'imap <script><silent><nowait><expr> <Tab> copilot#Accept(' . tab_fallback . ')'
+      exe 'imap <script><silent><nowait><expr> <Tab> copilot#AcceptOne(' . tab_fallback . ')'
+      exe 'imap <script><silent><nowait><expr> <S-Tab> copilot#AcceptAll(' . tab_fallback . ')'
     else
-      exe 'imap <silent><nowait><expr>         <Tab> copilot#Accept(' . tab_fallback . ')'
+      exe 'imap <silent><nowait><expr>         <Tab> copilot#AcceptOne(' . tab_fallback . ')'
+      exe 'imap <silent><nowait><expr>         <S-Tab> copilot#AcceptAll(' . tab_fallback . ')'
     endif
   endif
 endfunction
