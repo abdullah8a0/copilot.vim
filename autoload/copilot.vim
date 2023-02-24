@@ -432,7 +432,7 @@ endfunction
 
 function! copilot#IsMapped() abort
   return get(g:, 'copilot_assume_mapped') ||
-        \ hasmapto('copilot#Accept(', 'i')
+        \ hasmapto('copilot#AcceptOne(', 'i')
 endfunction
 let s:is_mapped = copilot#IsMapped()
 
@@ -481,7 +481,57 @@ function! copilot#TextQueuedForInsertion() abort
   endtry
 endfunction
 
-function! copilot#Accept(...) abort
+let s:sugg_buffer = {'sugg': '', 'count': 0, 'text': '', 'valid': v:false}
+function! copilot#AcceptOne(...) abort
+
+  if !s:sugg_buffer.valid
+    let s = copilot#GetDisplayedSuggestion()
+    if !empty(s)
+      " split the suggestion into words, keep the trailing space
+      let s:sugg_buffer = {'sugg': s, 'count': 0, 'text': split(s.text, '\w\W\+\zs'), 'valid': v:true}
+      " if the text is whitespace, invalidate the buffer
+      if (len(s:sugg_buffer.text)==0) || !(s:sugg_buffer.text[0] =~# '\S')
+        let s:sugg_buffer.valid = v:false
+      endif
+    endif
+  endif
+
+  if s:sugg_buffer.valid
+    let s:suggestion_text = s:sugg_buffer.text[s:sugg_buffer.count]
+    let s:sugg_buffer.count += 1
+    if s:sugg_buffer.count >= len(s:sugg_buffer.text)
+      let s:sugg_buffer.valid = v:false
+      unlet! b:_copilot
+      call copilot#Request('notifyAccepted', {'uuid': s:sugg_buffer.sugg.uuid}) 
+      unlet! s:uuid
+      call s:ClearPreview()
+    endif
+    if s:sugg_buffer.valid && s:sugg_buffer.count == 1
+      return repeat("\<Left>\<Del>", s:sugg_buffer.sugg.outdentSize) . repeat("\<Del>", s:sugg_buffer.sugg.deleteSize) .
+            \ "\<C-R>\<C-O>=copilot#TextQueuedForInsertion()\<CR>"
+    endif
+    return "\<C-R>\<C-O>=copilot#TextQueuedForInsertion()\<CR>" 
+  endif
+  
+  let default = get(g:, 'copilot_tab_fallback', pumvisible() ? "\<C-N>" : "\t")
+  if !a:0
+    return default
+  elseif type(a:1) == v:t_string
+    return a:1
+  elseif type(a:1) == v:t_func
+    try
+      return call(a:1, [])
+    catch
+      call copilot#logger#Exception()
+      return default
+    endtry
+  else
+    return default
+  endif
+endfunction
+
+
+function! copilot#AcceptAll(...) abort
   let s = copilot#GetDisplayedSuggestion()
   if !empty(s.text)
     unlet! b:_copilot
@@ -507,6 +557,27 @@ function! copilot#Accept(...) abort
   else
     return default
   endif
+endfunction
+
+function! copilot#clearBuffer(...) abort
+  let s:sugg_buffer.valid = v:false
+  if a:0
+    return a:1
+  endif
+endfunction
+
+function! copilot#OnInsertCharPre() abort
+  " If the user has pressed a key that is not a completion key, clear the
+  " suggestion buffer.
+  if !s:is_mapped || !s:dest || !copilot#Enabled()
+    return
+  endif
+  let key = v:char
+  if key ==# "\t"
+    return
+  endif
+  call copilot#clearBuffer()
+  return key
 endfunction
 
 function! s:BrowserCallback(into, code) abort

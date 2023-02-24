@@ -20,13 +20,19 @@ function! s:ColorScheme() abort
   hi def link CopilotAnnotation Normal
 endfunction
 
-function! s:MapTab() abort
+" Map <Tab> and <S-Tab> to accept suggestions. 
+" If <Tab> is already mapped, use it as a fallback.
+" Map <CR> to clear the suggestion buffer.
+" If <CR> is already mapped, use it as a fallback.
+function! s:MapShortcuts() abort
   if get(g:, 'copilot_no_tab_map') || get(g:, 'copilot_no_maps')
     return
   endif
   let tab_map = maparg('<Tab>', 'i', 0, 1)
+  let cr_map = maparg('<CR>', 'i', 0, 1)
   if !has_key(tab_map, 'rhs')
-    imap <script><silent><nowait><expr> <Tab> copilot#Accept()
+    imap <script><silent><nowait><expr> <Tab> copilot#AcceptOne()
+    imap <script><silent><nowait><expr> <S-Tab> copilot#AcceptAll()
   elseif tab_map.rhs !~# 'copilot'
     if tab_map.expr
       let tab_fallback = '{ -> ' . tab_map.rhs . ' }'
@@ -35,9 +41,27 @@ function! s:MapTab() abort
     endif
     let tab_fallback = substitute(tab_fallback, '<SID>', '<SNR>' . get(tab_map, 'sid') . '_', 'g')
     if get(tab_map, 'noremap') || get(tab_map, 'script') || mapcheck('<Left>', 'i') || mapcheck('<Del>', 'i')
-      exe 'imap <script><silent><nowait><expr> <Tab> copilot#Accept(' . tab_fallback . ')'
+      exe 'imap <script><silent><nowait><expr> <Tab> copilot#AcceptOne(' . tab_fallback . ')'
+      exe 'imap <script><silent><nowait><expr> <S-Tab> copilot#AcceptAll(' . tab_fallback . ')'
     else
-      exe 'imap <silent><nowait><expr>         <Tab> copilot#Accept(' . tab_fallback . ')'
+      exe 'imap <silent><nowait><expr>         <Tab> copilot#AcceptOne(' . tab_fallback . ')'
+      exe 'imap <silent><nowait><expr>         <S-Tab> copilot#AcceptAll(' . tab_fallback . ')'
+    endif
+  endif
+
+  if !has_key(cr_map, 'rhs')
+    imap <script><silent><nowait><expr> <CR> copilot#clearBuffer('<CR>')
+  elseif cr_map.rhs !~# 'copilot'
+    if cr_map.expr
+      let cr_fallback = '{ -> ' . cr_map.rhs . ' }'
+    else
+      let cr_fallback = substitute(json_encode(cr_map.rhs), '<', '\\<', 'g')
+    endif
+    let cr_fallback = substitute(cr_fallback, '<SID>', '<SNR>' . get(cr_map, 'sid') . '_', 'g')
+    if get(cr_map, 'noremap') || get(cr_map, 'script') || mapcheck('<Left>', 'i') || mapcheck('<Del>', 'i')
+      exe 'imap <script><silent><nowait><expr> <CR> copilot#clearBuffer(' . cr_fallback . ')'
+    else
+      exe 'imap <silent><nowait><expr>         <CR> copilot#clearBuffer(' . cr_fallback . ')'
     endif
   endif
 endfunction
@@ -59,12 +83,13 @@ augroup github_copilot
   autocmd CursorMovedI         * call s:Event('CursorMovedI')
   autocmd CompleteChanged      * call s:Event('CompleteChanged')
   autocmd ColorScheme,VimEnter * call s:ColorScheme()
-  autocmd VimEnter             * call s:MapTab()
+  autocmd VimEnter             * call s:MapShortcuts()
+  autocmd InsertCharPre        * call s:Event('InsertCharPre')
   autocmd BufReadCmd copilot://* setlocal buftype=nofile bufhidden=wipe nobuflisted readonly nomodifiable
 augroup END
 
 call s:ColorScheme()
-call s:MapTab()
+call s:MapShortcuts()
 if !get(g:, 'copilot_no_maps')
   imap <Plug>(copilot-dismiss)     <Cmd>call copilot#Dismiss()<CR>
   if empty(mapcheck('<C-]>', 'i'))
