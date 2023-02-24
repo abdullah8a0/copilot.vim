@@ -488,7 +488,7 @@ function! copilot#AcceptOne(...) abort
     let s = copilot#GetDisplayedSuggestion()
     if !empty(s)
       " split the suggestion into words, keep the trailing space
-      let s:sugg_buffer = {'sugg': s, 'count': 0, 'text': split(s.text, '[\t ]\zs') , 'valid': v:true}
+      let s:sugg_buffer = {'sugg': s, 'count': 0, 'text': split(s.text, '\w\W\+\zs'), 'valid': v:true}
       " if the text is whitespace, invalidate the buffer
       if (len(s:sugg_buffer.text)==0) || !(s:sugg_buffer.text[0] =~# '\S')
         let s:sugg_buffer.valid = v:false
@@ -557,6 +557,27 @@ function! copilot#AcceptAll(...) abort
   else
     return default
   endif
+endfunction
+
+function! copilot#clearBuffer(...) abort
+  let s:sugg_buffer.valid = v:false
+  if a:0
+    return a:1
+  endif
+endfunction
+
+function! copilot#OnInsertCharPre() abort
+  " If the user has pressed a key that is not a completion key, clear the
+  " suggestion buffer.
+  if !s:is_mapped || !s:dest || !copilot#Enabled()
+    return
+  endif
+  let key = v:char
+  if key ==# "\t"
+    return
+  endif
+  call copilot#clearBuffer()
+  return key
 endfunction
 
 function! s:BrowserCallback(into, code) abort
