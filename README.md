@@ -30,22 +30,22 @@ Terms](https://docs.github.com/en/site-policy/github-terms/github-terms-for-addi
 
     * Vim, Linux/macOS:
 
-          git clone https://github.com/github/copilot.vim.git \
+          git clone https://github.com/abdullah8a0/copilot.vim.git \
             ~/.vim/pack/github/start/copilot.vim
 
     * Neovim, Linux/macOS:
 
-          git clone https://github.com/github/copilot.vim.git \
+          git clone https://github.com/abdullah8a0/copilot.vim.git \
             ~/.config/nvim/pack/github/start/copilot.vim
 
     * Vim, Windows (PowerShell command):
 
-          git clone https://github.com/github/copilot.vim.git `
+          git clone https://github.com/abdullah8a0/copilot.vim.git `
             $HOME/vimfiles/pack/github/start/copilot.vim
 
     * Neovim, Windows (PowerShell command):
 
-          git clone https://github.com/github/copilot.vim.git `
+          git clone https://github.com/abdullah8a0/copilot.vim.git `
             $HOME/AppData/Local/nvim/pack/github/start/copilot.vim
 
 4.  Start Neovim and invoke `:Copilot setup`.
