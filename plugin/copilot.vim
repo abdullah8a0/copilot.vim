@@ -70,12 +70,13 @@ function! s:Event(type) abort
   try
     call call('copilot#On' . a:type, [])
   catch
-    call copilot#logger#Exception()
+    call copilot#logger#Exception('autocmd.' . a:type)
   endtry
 endfunction
 
 augroup github_copilot
   autocmd!
+  autocmd FileType             * call s:Event('FileType')
   autocmd InsertLeave          * call s:Event('InsertLeave')
   autocmd BufLeave             * if mode() =~# '^[iR]'|call s:Event('InsertLeave')|endif
   autocmd InsertEnter          * call s:Event('InsertEnter')
@@ -83,9 +84,10 @@ augroup github_copilot
   autocmd CursorMovedI         * call s:Event('CursorMovedI')
   autocmd CompleteChanged      * call s:Event('CompleteChanged')
   autocmd ColorScheme,VimEnter * call s:ColorScheme()
-  autocmd VimEnter             * call s:MapShortcuts()
+  autocmd VimEnter             * call s:MapShortcuts() | call copilot#Init()
   autocmd InsertCharPre        * call s:Event('InsertCharPre')
-  autocmd BufReadCmd copilot://* setlocal buftype=nofile bufhidden=wipe nobuflisted readonly nomodifiable
+  autocmd BufReadCmd copilot:///log call copilot#logger#BufReadCmd() | setfiletype copilotlog
+  autocmd BufReadCmd copilot://* setlocal buftype=nofile bufhidden=wipe nobuflisted nomodifiable
 augroup END
 
 call s:ColorScheme()
@@ -98,11 +100,13 @@ if !get(g:, 'copilot_no_maps')
   imap <Plug>(copilot-next)     <Cmd>call copilot#Next()<CR>
   imap <Plug>(copilot-previous) <Cmd>call copilot#Previous()<CR>
   imap <Plug>(copilot-suggest)  <Cmd>call copilot#Suggest()<CR>
+  imap <script><silent><nowait><expr> <Plug>(copilot-accept-word) copilot#AcceptWord()
+  imap <script><silent><nowait><expr> <Plug>(copilot-accept-line) copilot#AcceptLine()
   try
     if !has('nvim') && &encoding ==# 'utf-8'
       " avoid 8-bit meta collision with UTF-8 characters
       let s:restore_encoding = 1
-      set encoding=cp949
+      silent noautocmd set encoding=cp949
     endif
     if empty(mapcheck('<M-]>', 'i'))
       imap <M-]> <Plug>(copilot-next)
@@ -113,14 +117,18 @@ if !get(g:, 'copilot_no_maps')
     if empty(mapcheck('<M-Bslash>', 'i'))
       imap <M-Bslash> <Plug>(copilot-suggest)
     endif
+    if empty(mapcheck('<M-Right>', 'i'))
+      imap <M-Right> <Plug>(copilot-accept-word)
+    endif
+    if empty(mapcheck('<M-C-Right>', 'i'))
+      imap <M-C-Right> <Plug>(copilot-accept-line)
+    endif
   finally
     if exists('s:restore_encoding')
-      set encoding=utf-8
+      silent noautocmd set encoding=utf-8
     endif
   endtry
 endif
-
-call copilot#Init()
 
 let s:dir = expand('<sfile>:h:h')
 if getftime(s:dir . '/doc/copilot.txt') > getftime(s:dir . '/doc/tags')
